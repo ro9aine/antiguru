@@ -28,4 +28,3 @@ def on_startup() -> None:
             session.commit()
     finally:
         session.close()
-

@@ -16,4 +16,3 @@ class PaymentValidationError(DomainError):
 
 class BankApiError(DomainError):
     pass
-

@@ -26,4 +26,3 @@ class BankPaymentStatus(StrEnum):
     PAID = "paid"
     FAILED = "failed"
     NOT_FOUND = "not_found"
-

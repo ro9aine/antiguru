@@ -7,6 +7,7 @@ from app.db import Base
 from app.domain.enums import BankPaymentStatus, OrderPaymentStatus, PaymentStatus, PaymentType
 from app.integrations.bank_client import BankCheckResult, BankStartResult
 from app.models import Order
+from app.repositories import OrderRepository, PaymentRepository
 from app.services.payment_service import PaymentService
 
 
@@ -36,10 +37,11 @@ def build_session() -> Session:
 def test_cash_payment_changes_order_status() -> None:
     session = build_session()
     order = Order(total_amount=Decimal("100.00"), payment_status=OrderPaymentStatus.UNPAID)
-    session.add(order)
-    session.commit()
+    orders = OrderRepository(session)
+    payments = PaymentRepository(session)
+    orders.add(order)
 
-    service = PaymentService(session)
+    service = PaymentService(orders=orders, payments=payments)
     payment = service.create_payment(order.id, Decimal("60.00"), PaymentType.CASH)
 
     assert payment.status == PaymentStatus.SUCCEEDED
@@ -49,10 +51,11 @@ def test_cash_payment_changes_order_status() -> None:
 def test_refund_recalculates_order_status() -> None:
     session = build_session()
     order = Order(total_amount=Decimal("100.00"), payment_status=OrderPaymentStatus.UNPAID)
-    session.add(order)
-    session.commit()
+    orders = OrderRepository(session)
+    payments = PaymentRepository(session)
+    orders.add(order)
 
-    service = PaymentService(session)
+    service = PaymentService(orders=orders, payments=payments)
     payment = service.create_payment(order.id, Decimal("100.00"), PaymentType.CASH)
     refunded = service.refund_payment(payment.id, Decimal("30.00"))
 
@@ -63,10 +66,11 @@ def test_refund_recalculates_order_status() -> None:
 def test_acquiring_payment_becomes_paid_after_sync() -> None:
     session = build_session()
     order = Order(total_amount=Decimal("100.00"), payment_status=OrderPaymentStatus.UNPAID)
-    session.add(order)
-    session.commit()
+    orders = OrderRepository(session)
+    payments = PaymentRepository(session)
+    orders.add(order)
 
-    service = PaymentService(session, bank_client=StubBankClient())
+    service = PaymentService(orders=orders, payments=payments, bank_client=StubBankClient())
     payment = service.create_payment(order.id, Decimal("40.00"), PaymentType.ACQUIRING)
 
     assert payment.status == PaymentStatus.PENDING
@@ -79,10 +83,11 @@ def test_acquiring_payment_becomes_paid_after_sync() -> None:
 def test_pending_acquiring_reserves_order_amount() -> None:
     session = build_session()
     order = Order(total_amount=Decimal("100.00"), payment_status=OrderPaymentStatus.UNPAID)
-    session.add(order)
-    session.commit()
+    orders = OrderRepository(session)
+    payments = PaymentRepository(session)
+    orders.add(order)
 
-    service = PaymentService(session, bank_client=StubBankClient())
+    service = PaymentService(orders=orders, payments=payments, bank_client=StubBankClient())
     service.create_payment(order.id, Decimal("80.00"), PaymentType.ACQUIRING)
 
     try:

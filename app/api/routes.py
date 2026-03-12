@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 
 from app.api.schemas import OrderResponse, PaymentCreateRequest, PaymentResponse, RefundRequest
-from app.db import get_session
+from app.api.deps import get_order_repository, get_payment_service
 from app.domain.exceptions import (
     BankApiError,
     DomainError,
@@ -15,13 +14,9 @@ from app.services.payment_service import PaymentService
 router = APIRouter()
 
 
-def get_payment_service(session: Session = Depends(get_session)) -> PaymentService:
-    return PaymentService(session=session)
-
-
 @router.get("/orders", response_model=list[OrderResponse])
-def list_orders(session: Session = Depends(get_session)) -> list[OrderResponse]:
-    orders = OrderRepository(session).list()
+def list_orders(orders_repo: OrderRepository = Depends(get_order_repository)) -> list[OrderResponse]:
+    orders = orders_repo.list()
     return [OrderResponse.from_model(order) for order in orders]
 
 

@@ -1,29 +1,35 @@
 [project]
-name = "antiguru-payments"
+name = "app"
 version = "0.1.0"
 description = "Test task payment service"
+authors = [
+    {name = "Egor Bogdanov"}
+]
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.115.0,<1.0.0",
     "sqlalchemy>=2.0.36,<3.0.0",
     "pydantic>=2.10.0,<3.0.0",
     "pydantic-settings>=2.7.0,<3.0.0",
     "uvicorn[standard]>=0.34.0,<1.0.0",
     "httpx>=0.28.0,<1.0.0",
+    "fastapi (>=0.135.1,<0.136.0)",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.3.0,<9.0.0",
-]
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.3.0,<9.0.0"
+pytest-asyncio = "^1.3.0"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
+
+
+[tool.poetry.scripts]
+dev = "app.cli:dev"
 
 [tool.setuptools.packages.find]
 include = ["app*", "tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
+asyncio_default_fixture_loop_scope = "function"

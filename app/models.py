@@ -8,14 +8,16 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.domain.enums import BankPaymentStatus, OrderPaymentStatus, PaymentStatus, PaymentType
-from app.domain.exceptions import PaymentValidationError
 
 
 def utcnow() -> datetime:
+    """Return the current time in UTC."""
     return datetime.now(timezone.utc)
 
 
 class Order(Base):
+    """Represents a customer order and the payments attached to it."""
+
     __tablename__ = "orders"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -28,32 +30,27 @@ class Order(Base):
     payments: Mapped[list["Payment"]] = relationship(back_populates="order", cascade="all, delete-orphan")
 
     def paid_amount(self) -> Decimal:
+        """Calculate the amount actually paid after refunds."""
         total = Decimal("0.00")
         for payment in self.payments:
             total += payment.net_amount()
         return total
 
     def committed_amount(self) -> Decimal:
+        """Calculate the amount reserved or paid by non-failed payments."""
         total = Decimal("0.00")
         for payment in self.payments:
             total += payment.committed_amount()
         return total
 
     def available_amount(self) -> Decimal:
+        """Return how much of the order total is still available for payment."""
         return Decimal(self.total_amount) - self.committed_amount()
-
-    def recalculate_payment_status(self) -> None:
-        paid = self.paid_amount()
-        total = Decimal(self.total_amount)
-        if paid <= Decimal("0.00"):
-            self.payment_status = OrderPaymentStatus.UNPAID
-        elif paid < total:
-            self.payment_status = OrderPaymentStatus.PARTIALLY_PAID
-        else:
-            self.payment_status = OrderPaymentStatus.PAID
 
 
 class Payment(Base):
+    """Represents a single payment attempt for an order."""
+
     __tablename__ = "payments"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -70,51 +67,26 @@ class Payment(Base):
         back_populates="payment", uselist=False, cascade="all, delete-orphan"
     )
 
+    def refunded_total(self) -> Decimal:
+        """Return the refunded amount normalized to a decimal value."""
+        return Decimal(self.refunded_amount or Decimal("0.00"))
+
     def net_amount(self) -> Decimal:
-        if self.status in {PaymentStatus.PENDING, PaymentStatus.FAILED}:
+        """Return the effective paid amount after refunds for settled payments."""
+        if self.status in {None, PaymentStatus.PENDING, PaymentStatus.FAILED}:
             return Decimal("0.00")
-        return Decimal(self.amount) - Decimal(self.refunded_amount)
+        return Decimal(self.amount) - self.refunded_total()
 
     def committed_amount(self) -> Decimal:
+        """Return the amount this payment reserves against the order total."""
         if self.status == PaymentStatus.FAILED:
             return Decimal("0.00")
-        return Decimal(self.amount) - Decimal(self.refunded_amount)
-
-    def deposit(self, order: Order, paid_at: datetime | None = None) -> None:
-        if self.status in {PaymentStatus.SUCCEEDED, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.REFUNDED}:
-            raise PaymentValidationError("payment is already deposited")
-        if Decimal(self.amount) <= Decimal("0.00"):
-            raise PaymentValidationError("payment amount must be positive")
-        if Decimal(self.amount) > order.available_amount():
-            raise PaymentValidationError("payment amount exceeds order remaining amount")
-
-        self.status = PaymentStatus.SUCCEEDED
-        self.paid_at = paid_at or utcnow()
-        order.recalculate_payment_status()
-
-    def refund(self, order: Order, amount: Decimal) -> None:
-        if self.status not in {
-            PaymentStatus.SUCCEEDED,
-            PaymentStatus.PARTIALLY_REFUNDED,
-        }:
-            raise PaymentValidationError("only successful payments can be refunded")
-        if amount <= Decimal("0.00"):
-            raise PaymentValidationError("refund amount must be positive")
-
-        available_refund = Decimal(self.amount) - Decimal(self.refunded_amount)
-        if amount > available_refund:
-            raise PaymentValidationError("refund amount exceeds refundable amount")
-
-        self.refunded_amount = Decimal(self.refunded_amount) + amount
-        self.status = (
-            PaymentStatus.REFUNDED
-            if Decimal(self.refunded_amount) == Decimal(self.amount)
-            else PaymentStatus.PARTIALLY_REFUNDED
-        )
-        order.recalculate_payment_status()
+        return Decimal(self.amount) - self.refunded_total()
 
 
 class BankPayment(Base):
+    """Stores external bank state for an acquiring payment."""
+
     __tablename__ = "bank_payments"
 
     id: Mapped[int] = mapped_column(primary_key=True)

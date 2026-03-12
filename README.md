@@ -1,52 +1,66 @@
 # Payment Service Test Task
 
-Базовая архитектура сервиса оплаты заказов.
+Basic payment service for order payments with cash and acquiring flows.
 
-## Стек
+## Stack
 
-- `FastAPI` для REST API
-- `SQLAlchemy` для ORM и работы с реляционной БД
-- `SQLite` по умолчанию для локального запуска
-- `httpx` для интеграции с внешним API банка
+- `FastAPI` for the HTTP API
+- `SQLAlchemy` for ORM and persistence
+- `SQLite` by default for local development
+- `httpx` for bank API integration
+- `pytest` for tests
 
-## Архитектура
+## Architecture
 
-Проект разделен на слои:
+The project is split into the following layers:
 
-- `app/domain` — бизнес-перечисления и исключения
-- `app/models` — ORM-модели `Order`, `Payment`, `BankPayment`
-- `app/services` — сценарии создания платежа, возврата и синхронизации со стороной банка
-- `app/integrations` — клиент внешнего банковского API
-- `app/api` — HTTP-ручки и схемы запросов/ответов
+- `app/domain` contains enums and domain exceptions
+- `app/models` contains ORM models and read-side calculation helpers
+- `app/repositories` contains persistence access for orders and payments
+- `app/services` contains payment workflows and state transitions
+- `app/integrations` contains the external bank API client
+- `app/api` contains request/response schemas and HTTP routes
 
-Ключевая идея:
+Current responsibility split:
 
-- `Payment` не зависит от конкретного типа платежа в бизнес-логике, тип задается enum-значением.
-- Для эквайринга используется отдельная сущность `BankPayment`, где хранится внешний идентификатор, статус банка и время последней синхронизации.
-- Статус оплаты заказа пересчитывается централизованно после каждого `deposit`, `refund` и `sync`.
+- `PaymentService` owns payment state transitions such as deposit, refund, and order status recalculation
+- repositories own session-backed persistence operations
+- ORM models are kept focused on data shape and derived read values
 
-## Быстрый старт
+## Quick Start
 
-```bash
+```powershell
 python -m venv .venv
-.venv\Scripts\activate
-pip install -e .[dev]
-uvicorn app.main:app --reload
+.\.venv\Scripts\activate
+pip install poetry
+poetry install --with dev
+poetry run dev
 ```
 
-## Основные ручки
+To run the server without the Poetry script:
+
+```powershell
+poetry run uvicorn app.main:app --reload
+```
+
+## Tests
+
+```powershell
+poetry run pytest -q
+```
+
+## Endpoints
 
 - `GET /orders`
 - `POST /orders/{order_id}/payments`
 - `POST /payments/{payment_id}/refund`
 - `POST /payments/{payment_id}/sync-bank`
 
-## Схема БД
+## Database Schema
 
-См. [docs/db_schema.md](docs/db_schema.md).
+See [docs/db_schema.md](docs/db_schema.md).
 
-## Примечания
+## Notes
 
-- Создание заказов намеренно не реализовано: по условию задания они уже существуют.
-- Для локального сценария есть сидирование двух тестовых заказов при старте приложения, если таблица заказов пуста.
-
+- Order creation is intentionally not implemented; orders are assumed to already exist.
+- On startup, the app seeds two example orders when the orders table is empty.
