@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    database_url: str = "sqlite:///./local.db"
+    database_url: str = "sqlite+aiosqlite:///./local.db"
     bank_api_base_url: str = "https://bank.api"
     bank_timeout_seconds: float = 5.0
 

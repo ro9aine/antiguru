@@ -16,3 +16,7 @@ class PaymentValidationError(DomainError):
 
 class BankApiError(DomainError):
     pass
+
+
+class IdempotencyConflictError(DomainError):
+    pass

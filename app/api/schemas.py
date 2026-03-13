@@ -4,6 +4,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 from app.domain.enums import BankPaymentStatus, OrderPaymentStatus, PaymentStatus, PaymentType
+from app.models import Order, Payment
 
 
 class PaymentCreateRequest(BaseModel):
@@ -13,6 +14,13 @@ class PaymentCreateRequest(BaseModel):
 
 class RefundRequest(BaseModel):
     amount: Decimal = Field(gt=Decimal("0.00"))
+
+
+class BankWebhookRequest(BaseModel):
+    payment_id: str
+    amount: Decimal = Field(ge=Decimal("0.00"))
+    status: BankPaymentStatus
+    paid_at: datetime | None = None
 
 
 class BankPaymentResponse(BaseModel):
@@ -34,7 +42,7 @@ class PaymentResponse(BaseModel):
     bank_payment: BankPaymentResponse | None
 
     @classmethod
-    def from_model(cls, payment):
+    def from_model(cls, payment: Payment) -> "PaymentResponse":
         return cls(
             id=payment.id,
             order_id=payment.order_id,
@@ -64,11 +72,10 @@ class OrderResponse(BaseModel):
     payment_status: OrderPaymentStatus
 
     @classmethod
-    def from_model(cls, order):
+    def from_model(cls, order: Order) -> "OrderResponse":
         return cls(
             id=order.id,
             total_amount=order.total_amount,
             paid_amount=order.paid_amount(),
             payment_status=order.payment_status,
         )
-

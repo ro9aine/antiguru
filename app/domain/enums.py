@@ -26,3 +26,8 @@ class BankPaymentStatus(StrEnum):
     PAID = "paid"
     FAILED = "failed"
     NOT_FOUND = "not_found"
+
+
+class IdempotencyOperation(StrEnum):
+    CREATE_PAYMENT = "create_payment"
+    REFUND_PAYMENT = "refund_payment"

@@ -1,4 +1,4 @@
-# Payment Service Test Task
+# ayment Service Test Task
 
 Basic payment service for order payments with cash and acquiring flows.
 
@@ -9,6 +9,8 @@ Basic payment service for order payments with cash and acquiring flows.
 - `SQLite` by default for local development
 - `httpx` for bank API integration
 - `pytest` for tests
+- `mypy` for static type checking
+- `Alembic` for schema migrations
 
 ## Architecture
 
@@ -34,6 +36,7 @@ python -m venv .venv
 .\.venv\Scripts\activate
 pip install poetry
 poetry install --with dev
+poetry run alembic upgrade head
 poetry run dev
 ```
 
@@ -49,12 +52,28 @@ poetry run uvicorn app.main:app --reload
 poetry run pytest -q
 ```
 
+## Type Checking
+
+```powershell
+poetry run mypy
+```
+
+## Migrations
+
+```powershell
+poetry run alembic upgrade head
+```
+
 ## Endpoints
 
 - `GET /orders`
 - `POST /orders/{order_id}/payments`
 - `POST /payments/{payment_id}/refund`
 - `POST /payments/{payment_id}/sync-bank`
+- `POST /webhooks/bank/payments`
+
+`POST /orders/{order_id}/payments` and `POST /payments/{payment_id}/refund` accept an optional `Idempotency-Key` header.
+`POST /webhooks/bank/payments` accepts bank status callbacks keyed by the external payment id.
 
 ## Database Schema
 

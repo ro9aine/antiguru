@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String
+from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
-from app.domain.enums import BankPaymentStatus, OrderPaymentStatus, PaymentStatus, PaymentType
+from app.domain.enums import BankPaymentStatus, IdempotencyOperation, OrderPaymentStatus, PaymentStatus, PaymentType
 
 
 def utcnow() -> datetime:
@@ -66,6 +66,7 @@ class Payment(Base):
     bank_payment: Mapped["BankPayment | None"] = relationship(
         back_populates="payment", uselist=False, cascade="all, delete-orphan"
     )
+    idempotency_keys: Mapped[list["IdempotencyKey"]] = relationship(back_populates="payment", cascade="all, delete-orphan")
 
     def refunded_total(self) -> Decimal:
         """Return the refunded amount normalized to a decimal value."""
@@ -101,3 +102,19 @@ class BankPayment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     payment: Mapped[Payment] = relationship(back_populates="bank_payment")
+
+
+class IdempotencyKey(Base):
+    """Stores idempotent request keys mapped to the payment returned to the client."""
+
+    __tablename__ = "idempotency_keys"
+    __table_args__ = (UniqueConstraint("operation", "key", name="uq_idempotency_operation_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    operation: Mapped[IdempotencyOperation] = mapped_column(Enum(IdempotencyOperation), nullable=False)
+    key: Mapped[str] = mapped_column(String(128), nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(String(255), nullable=False)
+    payment_id: Mapped[int] = mapped_column(ForeignKey("payments.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    payment: Mapped[Payment] = relationship(back_populates="idempotency_keys")

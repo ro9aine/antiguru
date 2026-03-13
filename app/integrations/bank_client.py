@@ -29,15 +29,15 @@ class BankApiClient:
         self.base_url = base_url or settings.bank_api_base_url
         self.timeout = timeout or settings.bank_timeout_seconds
 
-    def start_payment(self, order_id: int, amount: Decimal) -> BankStartResult:
+    async def start_payment(self, order_id: int, amount: Decimal) -> BankStartResult:
         payload = {"order_id": order_id, "amount": str(amount)}
         try:
-            response = httpx.post(
-                f"{self.base_url}/acquiring_start",
-                json=payload,
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/acquiring_start",
+                    json=payload,
+                )
+                response.raise_for_status()
         except httpx.TimeoutException as exc:
             raise BankApiError("bank start request timed out") from exc
         except httpx.HTTPError as exc:
@@ -53,14 +53,14 @@ class BankApiClient:
 
         return BankStartResult(external_payment_id=str(payment_id))
 
-    def check_payment(self, external_payment_id: str) -> BankCheckResult:
+    async def check_payment(self, external_payment_id: str) -> BankCheckResult:
         try:
-            response = httpx.post(
-                f"{self.base_url}/acquiring_check",
-                json={"payment_id": external_payment_id},
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/acquiring_check",
+                    json={"payment_id": external_payment_id},
+                )
+                response.raise_for_status()
         except httpx.TimeoutException as exc:
             raise BankApiError("bank check request timed out") from exc
         except httpx.HTTPError as exc:
@@ -83,4 +83,3 @@ class BankApiClient:
             status=BankPaymentStatus(str(data["status"])),
             paid_at=datetime.fromisoformat(data["paid_at"]) if data.get("paid_at") else None,
         )
-

@@ -31,6 +31,16 @@
 - `paid_at` timestamptz, nullable
 - `created_at` timestamptz
 
+### `idempotency_keys`
+
+- `id` PK
+- `operation` enum(`create_payment`, `refund_payment`)
+- `key` varchar(128)
+- `request_fingerprint` varchar(255)
+- `payment_id` FK -> `payments.id`
+- `created_at` timestamptz
+- unique(`operation`, `key`)
+
 ## Связи
 
 - Один `order` имеет много `payments`
@@ -41,4 +51,3 @@
 - `orders.payment_status` не хранит независимое состояние, а является производным от суммы успешных платежей с учетом возвратов.
 - `bank_payments.status` хранит последнее известное внешнее состояние.
 - `payments.status` хранит внутреннее состояние операции в приложении.
-

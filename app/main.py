@@ -13,11 +13,12 @@ app.include_router(router)
 
 
 @app.on_event("startup")
-def on_startup() -> None:
-    Base.metadata.create_all(bind=engine)
-    session = SessionLocal()
-    try:
-        has_orders = session.scalar(select(Order.id).limit(1))
+async def on_startup() -> None:
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    async with SessionLocal() as session:
+        has_orders = await session.scalar(select(Order.id).limit(1))
         if not has_orders:
             session.add_all(
                 [
@@ -25,6 +26,4 @@ def on_startup() -> None:
                     Order(total_amount=Decimal("2500.00"), payment_status=OrderPaymentStatus.UNPAID),
                 ]
             )
-            session.commit()
-    finally:
-        session.close()
+            await session.commit()
