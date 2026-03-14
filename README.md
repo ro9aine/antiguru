@@ -1,4 +1,4 @@
-# ayment Service Test Task
+# Payment Service Test Task
 
 Basic payment service for order payments with cash and acquiring flows.
 
