@@ -58,6 +58,19 @@ poetry run pytest -q
 poetry run mypy
 ```
 
+## Git Hooks
+
+```powershell
+poetry run pre-commit install
+poetry run pre-commit run --all-files
+```
+
+The pre-commit hook runs `pytest` and `mypy` before each commit.
+
+## CI
+
+GitHub Actions runs the same `pytest` and `mypy` checks on pushes and pull requests to `main`.
+
 ## Migrations
 
 ```powershell
